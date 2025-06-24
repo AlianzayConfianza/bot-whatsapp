@@ -1,0 +1,17 @@
+# Usa la imagen oficial de Node.js
+FROM node:20
+
+# Crea directorio en el contenedor
+WORKDIR /app
+
+# Copia archivos
+COPY . .
+
+# Instala dependencias
+RUN npm install
+
+# Expone el puerto (aunque Baileys no lo necesita, Railway lo pide)
+EXPOSE 3000
+
+# Comando para ejecutar tu bot
+CMD ["npm", "start"]

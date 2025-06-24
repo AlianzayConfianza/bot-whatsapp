@@ -1,4 +1,5 @@
-import makeWASocket, {
+import {
+  makeWASocket,
   useMultiFileAuthState,
   fetchLatestBaileysVersion,
   DisconnectReason
@@ -23,7 +24,7 @@ async function startSock() {
   sock.ev.on('connection.update', (update) => {
     const { connection, lastDisconnect } = update;
     if (connection === 'close') {
-      const shouldReconnect = (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
+      const shouldReconnect = (lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut);
       console.log('🔌 Conexión cerrada. Reintentando:', shouldReconnect);
       if (shouldReconnect) {
         startSock();
