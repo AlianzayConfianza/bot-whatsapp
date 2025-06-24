@@ -6,6 +6,7 @@ import {
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import * as fs from 'fs';
+import axios from 'axios'; // ✅ Importar correctamente
 
 console.log("✅ Iniciando bot...");
 
@@ -39,7 +40,22 @@ async function startSock() {
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     const msg = messages[0];
     if (!msg.message) return;
+
     const text = msg.message.conversation || msg.message.extendedTextMessage?.text;
+
+    // ✅ Enviar a tu flujo de n8n
+    try {
+      await axios.post("https://alianzayconfianza.app.n8n.cloud/webhook/b454cde0-07e1-49ee-83b3-dc3bdd371a5b", {
+        from: msg.key.remoteJid,
+        text: text,
+        timestamp: msg.messageTimestamp,
+        type: type
+      });
+      console.log("📨 Mensaje enviado a n8n");
+    } catch (error) {
+      console.error("❌ Error al enviar a n8n:", error.message);
+    }
+
     if (text?.toLowerCase() === 'hola') {
       await sock.sendMessage(msg.key.remoteJid, { text: '¡Hola! Soy tu bot de WhatsApp 🚀' });
     }
