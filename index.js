@@ -1,3 +1,4 @@
+import qrcode from 'qrcode-terminal'; // Correcto, lo necesitamos
 import {
   makeWASocket,
   useMultiFileAuthState,
@@ -5,24 +6,36 @@ import {
   DisconnectReason
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
-import * as fs from 'fs';
+import pino from 'pino';
+
+// Configuración del logger para ver menos mensajes en la consola
+const logger = pino({ level: 'silent' });
 
 console.log("✅ Iniciando bot...");
 
 async function startSock() {
+  // Usamos la carpeta 'auth' para guardar la sesión
   const { state, saveCreds } = await useMultiFileAuthState('auth');
   const { version, isLatest } = await fetchLatestBaileysVersion();
   console.log("✅ Usando versión de Baileys:", version, "última:", isLatest);
 
   const sock = makeWASocket({
     auth: state,
-    printQRInTerminal: true,
+    logger,
     version,
     syncFullHistory: false,
   });
 
+  // --- ESTA ES LA ÚNICA VERSIÓN QUE NECESITAMOS DE 'connection.update' ---
   sock.ev.on('connection.update', (update) => {
-    const { connection, lastDisconnect } = update;
+    const { connection, lastDisconnect, qr } = update;
+
+    if (qr) {
+        console.log('¡Escanea el código QR a continuación con tu teléfono!');
+        // Esta línea dibujará el QR directamente en tu terminal
+        qrcode.generate(qr, { small: true }); 
+    }
+
     if (connection === 'close') {
       const shouldReconnect = (lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut);
       console.log('🔌 Conexión cerrada. Reintentando:', shouldReconnect);
@@ -33,6 +46,7 @@ async function startSock() {
       console.log('✅ Conectado a WhatsApp');
     }
   });
+  // ----------------------------------------------------------------------
 
   sock.ev.on('creds.update', saveCreds);
 
