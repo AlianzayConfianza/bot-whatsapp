@@ -1,5 +1,4 @@
-const axios = require('axios');
-
+import axios from 'axios';
 import qrcode from 'qrcode-terminal'; // Correcto, lo necesitamos
 import {
   makeWASocket,
