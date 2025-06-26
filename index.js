@@ -1,3 +1,5 @@
+const axios = require('axios');
+
 import qrcode from 'qrcode-terminal'; // Correcto, lo necesitamos
 import {
   makeWASocket,
