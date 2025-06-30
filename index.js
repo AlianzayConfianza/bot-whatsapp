@@ -1,80 +1,94 @@
 import axios from 'axios';
-import qrcode from 'qrcode-terminal'; // Correcto, lo necesitamos
+import qrcode from 'qrcode-terminal';
 import {
-  makeWASocket,
-  useMultiFileAuthState,
-  fetchLatestBaileysVersion,
-  DisconnectReason
+    makeWASocket,
+    useMultiFileAuthState,
+    fetchLatestBaileysVersion,
+    DisconnectReason
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import pino from 'pino';
 
-// Configuración del logger para ver menos mensajes en la consola
 const logger = pino({ level: 'silent' });
 
 console.log("✅ Iniciando bot...");
 
 async function startSock() {
-  // Usamos la carpeta 'auth' para guardar la sesión
-  const { state, saveCreds } = await useMultiFileAuthState('auth');
-  const { version, isLatest } = await fetchLatestBaileysVersion();
-  console.log("✅ Usando versión de Baileys:", version, "última:", isLatest);
+    const { state, saveCreds } = await useMultiFileAuthState('auth');
+    const { version, isLatest } = await fetchLatestBaileysVersion();
+    console.log("✅ Usando versión de Baileys:", version, "última:", isLatest);
 
-  const sock = makeWASocket({
-    auth: state,
-    logger,
-    version,
-    syncFullHistory: false,
-  });
+    const sock = makeWASocket({
+        auth: state,
+        logger,
+        version,
+        printQRInTerminal: true, // Asegura que el QR se muestre si es necesario
+        syncFullHistory: false,
+    });
 
-  // --- ESTA ES LA ÚNICA VERSIÓN QUE NECESITAMOS DE 'connection.update' ---
-  sock.ev.on('connection.update', (update) => {
-    const { connection, lastDisconnect, qr } = update;
+    sock.ev.on('connection.update', (update) => {
+        const { connection, lastDisconnect, qr } = update;
 
-    if (qr) {
-        console.log('¡Escanea el código QR a continuación con tu teléfono!');
-        // Esta línea dibujará el QR directamente en tu terminal
-        qrcode.generate(qr, { small: true }); 
-    }
+        if (qr) {
+            console.log('--- ¡NUEVO CÓDIGO QR! --- Escanea con tu teléfono.');
+        }
 
-    if (connection === 'close') {
-      const shouldReconnect = (lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut);
-      console.log('🔌 Conexión cerrada. Reintentando:', shouldReconnect);
-      if (shouldReconnect) {
-        startSock();
-      }
-    } else if (connection === 'open') {
-      console.log('✅ Conectado a WhatsApp');
-    }
-  });
-  // ----------------------------------------------------------------------
+        if (connection === 'close') {
+            const shouldReconnect = (lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut);
+            console.log('🔌 Conexión cerrada. Reintentando:', shouldReconnect);
+            if (shouldReconnect) {
+                startSock();
+            }
+        } else if (connection === 'open') {
+            console.log('✅ Conectado a WhatsApp');
+        }
+    });
 
-  sock.ev.on('creds.update', saveCreds);
+    sock.ev.on('creds.update', saveCreds);
 
-  sock.ev.on('messages.upsert', async ({ messages, type }) => {
-    const msg = messages[0];
-    if (!msg.message) return;
+    // --- EL EVENTO CON SUPER-LOGGING ---
+    sock.ev.on('messages.upsert', async ({ messages, type }) => {
+        console.log('--- 🔎 EVENTO messages.upsert RECIBIDO ---');
 
-    const text = msg.message.conversation || msg.message.extendedTextMessage?.text;
+        const msg = messages[0];
+        console.log('Contenido completo del mensaje:', JSON.stringify(msg, null, 2));
 
-    // ✅ Enviar a tu flujo de n8n
-    try {
-      await axios.post("https://alianzayconfianza.app.n8n.cloud/webhook-test/fa7bb3ef-adb7-4e49-bf16-c0ce1460db1a", {
+        if (!msg.message) {
+            console.log('--> SALIDA: El objeto msg.message está vacío. Ignorando evento.');
+            return;
+        }
 
-        from: msg.key.remoteJid,
-        text: text,
-        timestamp: msg.messageTimestamp,
-        type: type
-      });
-      console.log("📨 Mensaje enviado a n8n");
-    } catch (error) {
-      console.error("❌ Error al enviar a n8n:", error.message);
-    }
+        const sender = msg.key.remoteJid;
+        const messageText = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
 
-    if (text?.toLowerCase() === 'hola') {
-      await sock.sendMessage(msg.key.remoteJid, { text: '¡Hola! Soy tu bot de WhatsApp 🚀' });
-    }
-  });
+        console.log(`--> De: ${sender}`);
+        console.log(`--> Texto extraído: "${messageText}"`);
+
+        if (messageText) {
+            console.log('--- ✅ El mensaje tiene texto, intentando enviar a n8n... ---');
+            
+            // ▼▼▼ ¡IMPORTANTE! Asegúrate de que esta sea tu URL de prueba más reciente de n8n ▼▼▼
+            const n8nWebhookUrl = "PEGA_AQUÍ_TU_URL_DE_N8N_MÁS_RECIENTE";
+            
+            try {
+                await axios.post(n8nWebhookUrl, {
+                    from: sender,
+                    text: messageText,
+                    timestamp: msg.messageTimestamp,
+                    type: type
+                });
+                console.log("--- 📨 ¡ÉXITO! Mensaje enviado a n8n. ---");
+            } catch (error) {
+                console.error("--- ❌ ¡ERROR! No se pudo enviar a n8n:", error.message);
+            }
+        } else {
+            console.log('--- 🚫 El mensaje no tiene texto, envío a n8n omitido. ---');
+        }
+
+        if (messageText.toLowerCase() === 'hola') {
+            await sock.sendMessage(sender, { text: '¡Hola! Soy tu bot de WhatsApp 🚀' });
+        }
+    });
 }
 
 startSock();
