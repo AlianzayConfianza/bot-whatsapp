@@ -59,7 +59,7 @@ async function startSock() {
 
     // ✅ Enviar a tu flujo de n8n
     try {
-      await axios.post("https://alianzayconfianza.app.n8n.cloud/webhook-test/eba322e1-1b04-4a40-bed9-2a89f03dabcb", {
+      await axios.post("https://alianzayconfianza.app.n8n.cloud/webhook-test/fa7bb3ef-adb7-4e49-bf16-c0ce1460db1a", {
 
         from: msg.key.remoteJid,
         text: text,
