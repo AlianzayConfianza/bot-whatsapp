@@ -68,7 +68,7 @@ async function startSock() {
             console.log('--- ✅ El mensaje tiene texto, intentando enviar a n8n... ---');
             
             // ▼▼▼ ¡IMPORTANTE! Asegúrate de que esta sea tu URL de prueba más reciente de n8n ▼▼▼
-            const n8nWebhookUrl = "PEGA_AQUÍ_TU_URL_DE_N8N_MÁS_RECIENTE";
+            const n8nWebhookUrl = "https://alianzayconfianza.app.n8n.cloud/webhook-test/798ff0f6-f260-4887-8715-7cfd3c7805c0";
             
             try {
                 await axios.post(n8nWebhookUrl, {
